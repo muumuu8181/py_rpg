@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Action RPG - Custom Background</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a2e;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+            background-color: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+        }
+        
+        canvas {
+            border: 3px solid #0f4c75;
+            background-image: url('extracted_image_1.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            cursor: crosshair;
+        }
+        
+        .overlay-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .bg-opacity {
+            margin-top: 10px;
+            color: #ecf0f1;
+        }
+        
+        .bg-opacity input {
+            width: 100px;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            color: #ecf0f1;
+        }
+        
+        h1 {
+            color: #e94560;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>Action RPG - カスタム背景版</h1>
+        <p style="color: #ecf0f1;">背景画像: extracted_image_1.png</p>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="stats">
+            <span>座標: <span id="position" style="color: #f39c12; font-weight: bold;">X:400 Y:300</span></span>
+            <span>HP: <span id="hp">100/100</span></span>
+            <span>MP: <span id="mp">50/50</span></span>
+            <span>スコア: <span id="score">0</span></span>
+        </div>
+    </div>
+    
+    <div class="overlay-controls">
+        <div>移動: 矢印キー/WASD</div>
+        <div>攻撃: スペース</div>
+        <div>特殊攻撃: E</div>
+        <div class="bg-opacity">
+            背景透明度: <br>
+            <input type="range" id="opacitySlider" min="0" max="100" value="70">
+            <span id="opacityValue">70%</span>
+        </div>
+    </div>
+
+    <script>
+        console.log('[ACTION RPG] カスタム背景版 - ゲーム初期化開始');
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 背景透明度調整
+        document.getElementById('opacitySlider').addEventListener('input', function(e) {
+            const opacity = e.target.value / 100;
+            document.getElementById('opacityValue').textContent = e.target.value + '%';
+            game.bgOverlayOpacity = 1 - opacity;
+        });
+        
+        // ゲーム状態
+        const game = {
+            player: {
+                x: 400, y: 300, width: 32, height: 32,
+                speed: 5, hp: 100, maxHp: 100, mp: 50, maxMp: 50,
+                score: 0, color: '#e94560', facing: 'right',
+                attackCooldown: 0
+            },
+            enemies: [],
+            projectiles: [],
+            particles: [],
+            keys: {},
+            frameCount: 0,
+            bgOverlayOpacity: 0.3
+        };
+        
+        // 弾クラス
+        class Projectile {
+            constructor(x, y, dx, dy) {
+                this.x = x; this.y = y;
+                this.dx = dx; this.dy = dy;
+                this.size = 8; this.color = '#f39c12';
+                this.lifetime = 60;
+            }
+            
+            update() {
+                this.x += this.dx; this.y += this.dy;
+                this.lifetime--;
+                return this.lifetime > 0 && this.x > 0 && this.x < canvas.width && this.y > 0 && this.y < canvas.height;
+            }
+            
+            draw() {
+                ctx.shadowBlur = 10; ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+        
+        // 敵生成
+        function spawnEnemy() {
+            const edge = Math.floor(Math.random() * 4);
+            let x, y;
+            switch(edge) {
+                case 0: x = Math.random() * canvas.width; y = -30; break;
+                case 1: x = canvas.width + 30; y = Math.random() * canvas.height; break;
+                case 2: x = Math.random() * canvas.width; y = canvas.height + 30; break;
+                case 3: x = -30; y = Math.random() * canvas.height; break;
+            }
+            
+            game.enemies.push({
+                x: x, y: y, width: 32, height: 32,
+                hp: 30, speed: 1 + Math.random() * 2,
+                color: '#e74c3c'
+            });
+        }
+        
+        // 攻撃
+        function playerAttack() {
+            if (game.player.attackCooldown > 0) return;
+            game.player.attackCooldown = 15;
+            const speed = 12;
+            
+            let dx = 0, dy = 0;
+            switch(game.player.facing) {
+                case 'up': dy = -speed; break;
+                case 'down': dy = speed; break;
+                case 'left': dx = -speed; break;
+                case 'right': dx = speed; break;
+            }
+            
+            game.projectiles.push(new Projectile(
+                game.player.x + 16, game.player.y + 16, dx, dy
+            ));
+        }
+        
+        // 特殊攻撃
+        function specialAttack() {
+            if (game.player.mp < 20) return;
+            game.player.mp -= 20;
+            
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 4) {
+                const speed = 8;
+                game.projectiles.push(new Projectile(
+                    game.player.x + 16, game.player.y + 16,
+                    Math.cos(angle) * speed, Math.sin(angle) * speed
+                ));
+            }
+        }
+        
+        // キー入力
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.key] = true;
+            if (e.key === ' ') { e.preventDefault(); playerAttack(); }
+            if (e.key === 'e' || e.key === 'E') { e.preventDefault(); specialAttack(); }
+        });
+        document.addEventListener('keyup', (e) => { game.keys[e.key] = false; });
+        
+        // 更新
+        function update() {
+            const speed = game.player.speed;
+            
+            if (game.keys['ArrowLeft'] || game.keys['a'] || game.keys['A']) {
+                game.player.x = Math.max(0, game.player.x - speed);
+                game.player.facing = 'left';
+            }
+            if (game.keys['ArrowRight'] || game.keys['d'] || game.keys['D']) {
+                game.player.x = Math.min(canvas.width - 32, game.player.x + speed);
+                game.player.facing = 'right';
+            }
+            if (game.keys['ArrowUp'] || game.keys['w'] || game.keys['W']) {
+                game.player.y = Math.max(0, game.player.y - speed);
+                game.player.facing = 'up';
+            }
+            if (game.keys['ArrowDown'] || game.keys['s'] || game.keys['S']) {
+                game.player.y = Math.min(canvas.height - 32, game.player.y + speed);
+                game.player.facing = 'down';
+            }
+            
+            // クールダウン
+            if (game.player.attackCooldown > 0) game.player.attackCooldown--;
+            if (game.frameCount % 30 === 0 && game.player.mp < game.player.maxMp) game.player.mp++;
+            
+            // 弾の更新
+            game.projectiles = game.projectiles.filter(proj => {
+                if (!proj.update()) return false;
+                
+                for (let i = game.enemies.length - 1; i >= 0; i--) {
+                    const enemy = game.enemies[i];
+                    if (Math.abs(proj.x - (enemy.x + 16)) < 24 && Math.abs(proj.y - (enemy.y + 16)) < 24) {
+                        enemy.hp -= 15;
+                        if (enemy.hp <= 0) {
+                            game.enemies.splice(i, 1);
+                            game.player.score += 10;
+                        }
+                        return false;
+                    }
+                }
+                return true;
+            });
+            
+            // 敵の移動
+            game.enemies.forEach(enemy => {
+                const dx = game.player.x - enemy.x;
+                const dy = game.player.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    enemy.x += (dx / dist) * enemy.speed;
+                    enemy.y += (dy / dist) * enemy.speed;
+                }
+                
+                // 衝突判定
+                if (Math.abs(enemy.x - game.player.x) < 32 && Math.abs(enemy.y - game.player.y) < 32) {
+                    game.player.hp = Math.max(0, game.player.hp - 1);
+                }
+            });
+            
+            // パーティクル更新
+            game.particles = game.particles.filter(p => {
+                p.x += p.dx; p.y += p.dy; p.lifetime--; p.size *= 0.95;
+                return p.lifetime > 0;
+            });
+            
+            // 敵スポーン
+            if (game.frameCount % 120 === 0) spawnEnemy();
+            
+            // UI更新
+            document.getElementById('position').textContent = `X:${Math.round(game.player.x)} Y:${Math.round(game.player.y)}`;
+            document.getElementById('hp').textContent = `${game.player.hp}/${game.player.maxHp}`;
+            document.getElementById('mp').textContent = `${game.player.mp}/${game.player.maxMp}`;
+            document.getElementById('score').textContent = game.player.score;
+            
+            game.frameCount++;
+        }
+        
+        // 描画
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 背景オーバーレイ
+            ctx.fillStyle = `rgba(15, 52, 96, ${game.bgOverlayOpacity})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // パーティクル
+            game.particles.forEach(p => {
+                ctx.globalAlpha = p.lifetime / 20;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+            
+            // 弾
+            game.projectiles.forEach(proj => proj.draw());
+            
+            // 敵
+            game.enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+                ctx.strokeRect(enemy.x, enemy.y, enemy.width, enemy.height);
+            });
+            
+            // プレイヤー
+            ctx.fillStyle = game.player.color;
+            ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
+            
+            // プレイヤーの向き
+            ctx.fillStyle = '#fff';
+            switch(game.player.facing) {
+                case 'up': ctx.fillRect(game.player.x + 14, game.player.y, 4, 8); break;
+                case 'down': ctx.fillRect(game.player.x + 14, game.player.y + 24, 4, 8); break;
+                case 'left': ctx.fillRect(game.player.x, game.player.y + 14, 8, 4); break;
+                case 'right': ctx.fillRect(game.player.x + 24, game.player.y + 14, 8, 4); break;
+            }
+            
+            // プレイヤー輪郭
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            ctx.strokeRect(game.player.x, game.player.y, game.player.width, game.player.height);
+        }
+        
+        // ゲームループ
+        function gameLoop() { update(); render(); requestAnimationFrame(gameLoop); }
+        
+        // 初期化
+        for (let i = 0; i < 3; i++) setTimeout(() => spawnEnemy(), i * 1000);
+        gameLoop();
+    </script>
+</body>
+</html>

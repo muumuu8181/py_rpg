@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal RPG Game - Web Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #2c3e50;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+            background-color: #34495e;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        canvas {
+            border: 3px solid #ecf0f1;
+            background-color: #1a252f;
+            cursor: pointer;
+        }
+        
+        .info {
+            color: #ecf0f1;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+        
+        .controls {
+            margin-top: 10px;
+            color: #bdc3c7;
+        }
+        
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            color: #ecf0f1;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .debug-log {
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1 style="color: #ecf0f1; margin-bottom: 20px;">Minimal RPG Game</h1>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="info">
+            <div class="controls">矢印キーまたはWASDで移動 | スペースキーでアクション</div>
+            <div class="stats">
+                <span>位置: <span id="position">X:400 Y:300</span></span>
+                <span>HP: <span id="hp">100/100</span></span>
+                <span>レベル: <span id="level">1</span></span>
+                <span>経験値: <span id="exp">0</span></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="debug-panel" id="debugPanel">
+        <div style="color: #fff; font-weight: bold; margin-bottom: 5px;">Debug Console</div>
+    </div>
+
+    <script>
+        // ゲーム初期化
+        console.log('[RPG] ゲーム初期化開始');
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // ゲーム状態
+        const game = {
+            player: {
+                x: 400,
+                y: 300,
+                width: 32,
+                height: 32,
+                speed: 5,
+                hp: 100,
+                maxHp: 100,
+                level: 1,
+                exp: 0,
+                color: '#e74c3c'
+            },
+            enemies: [],
+            items: [],
+            keys: {},
+            debugLogs: [],
+            frameCount: 0
+        };
+        
+        // デバッグログ関数
+        function debugLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const log = `[${timestamp}] ${message}`;
+            
+            // コンソールに出力
+            switch(type) {
+                case 'error':
+                    console.error(`[RPG] ${message}`);
+                    break;
+                case 'warn':
+                    console.warn(`[RPG] ${message}`);
+                    break;
+                default:
+                    console.log(`[RPG] ${message}`);
+            }
+            
+            // デバッグパネルに追加
+            game.debugLogs.push({time: timestamp, msg: message, type: type});
+            if (game.debugLogs.length > 10) {
+                game.debugLogs.shift();
+            }
+            updateDebugPanel();
+        }
+        
+        // デバッグパネル更新
+        function updateDebugPanel() {
+            const panel = document.getElementById('debugPanel');
+            const logsHtml = game.debugLogs.map(log => {
+                const color = log.type === 'error' ? '#f00' : log.type === 'warn' ? '#ff0' : '#0f0';
+                return `<div class="debug-log" style="color: ${color}">[${log.time}] ${log.msg}</div>`;
+            }).join('');
+            panel.innerHTML = '<div style="color: #fff; font-weight: bold; margin-bottom: 5px;">Debug Console</div>' + logsHtml;
+        }
+        
+        // 敵を生成
+        function spawnEnemy() {
+            const enemy = {
+                x: Math.random() * (canvas.width - 32),
+                y: Math.random() * (canvas.height - 32),
+                width: 32,
+                height: 32,
+                hp: 50,
+                color: '#9b59b6',
+                id: Date.now()
+            };
+            game.enemies.push(enemy);
+            debugLog(`敵を生成: ID=${enemy.id}, 位置(${Math.round(enemy.x)}, ${Math.round(enemy.y)})`);
+        }
+        
+        // アイテムを生成
+        function spawnItem() {
+            const types = ['heal', 'exp', 'power'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            const item = {
+                x: Math.random() * (canvas.width - 20),
+                y: Math.random() * (canvas.height - 20),
+                width: 20,
+                height: 20,
+                type: type,
+                color: type === 'heal' ? '#2ecc71' : type === 'exp' ? '#f39c12' : '#3498db',
+                id: Date.now()
+            };
+            game.items.push(item);
+            debugLog(`アイテム生成: ${type} at (${Math.round(item.x)}, ${Math.round(item.y)})`);
+        }
+        
+        // 初期配置
+        debugLog('初期配置を開始');
+        for (let i = 0; i < 3; i++) {
+            spawnEnemy();
+            spawnItem();
+        }
+        
+        // キー入力処理
+        document.addEventListener('keydown', (e) => {
+            game.keys[e.key] = true;
+            debugLog(`キー押下: ${e.key}`, 'info');
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            game.keys[e.key] = false;
+        });
+        
+        // 衝突判定
+        function checkCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+        
+        // ゲーム更新
+        function update() {
+            // プレイヤー移動
+            const oldX = game.player.x;
+            const oldY = game.player.y;
+            
+            if (game.keys['ArrowLeft'] || game.keys['a'] || game.keys['A']) {
+                game.player.x = Math.max(0, game.player.x - game.player.speed);
+            }
+            if (game.keys['ArrowRight'] || game.keys['d'] || game.keys['D']) {
+                game.player.x = Math.min(canvas.width - game.player.width, game.player.x + game.player.speed);
+            }
+            if (game.keys['ArrowUp'] || game.keys['w'] || game.keys['W']) {
+                game.player.y = Math.max(0, game.player.y - game.player.speed);
+            }
+            if (game.keys['ArrowDown'] || game.keys['s'] || game.keys['S']) {
+                game.player.y = Math.min(canvas.height - game.player.height, game.player.y + game.player.speed);
+            }
+            
+            // 移動ログ（10フレームごと）
+            if ((oldX !== game.player.x || oldY !== game.player.y) && game.frameCount % 10 === 0) {
+                debugLog(`プレイヤー移動: (${Math.round(game.player.x)}, ${Math.round(game.player.y)})`);
+            }
+            
+            // アイテム取得判定
+            game.items = game.items.filter(item => {
+                if (checkCollision(game.player, item)) {
+                    switch(item.type) {
+                        case 'heal':
+                            game.player.hp = Math.min(game.player.maxHp, game.player.hp + 20);
+                            debugLog('回復アイテム取得! HP+20', 'info');
+                            break;
+                        case 'exp':
+                            game.player.exp += 10;
+                            debugLog('経験値取得! EXP+10', 'info');
+                            if (game.player.exp >= game.player.level * 50) {
+                                game.player.level++;
+                                game.player.exp = 0;
+                                debugLog(`レベルアップ! Lv${game.player.level}`, 'warn');
+                            }
+                            break;
+                        case 'power':
+                            game.player.speed += 0.5;
+                            debugLog('パワーアップ! スピード上昇', 'info');
+                            break;
+                    }
+                    return false;
+                }
+                return true;
+            });
+            
+            // 敵との衝突判定
+            game.enemies.forEach(enemy => {
+                if (checkCollision(game.player, enemy)) {
+                    game.player.hp -= 1;
+                    if (game.frameCount % 30 === 0) {
+                        debugLog(`敵と衝突! ダメージ受けた HP:${game.player.hp}`, 'error');
+                    }
+                    
+                    if (game.player.hp <= 0) {
+                        debugLog('ゲームオーバー!', 'error');
+                        console.error('[RPG] GAME OVER - プレイヤーのHPが0になりました');
+                        resetGame();
+                    }
+                }
+            });
+            
+            // 敵の簡単なAI（プレイヤーに向かって移動）
+            game.enemies.forEach(enemy => {
+                const dx = game.player.x - enemy.x;
+                const dy = game.player.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist > 0) {
+                    enemy.x += (dx / dist) * 1;
+                    enemy.y += (dy / dist) * 1;
+                }
+            });
+            
+            // アイテム再生成
+            if (Math.random() < 0.01 && game.items.length < 5) {
+                spawnItem();
+            }
+            
+            // UI更新
+            updateUI();
+            game.frameCount++;
+        }
+        
+        // UI更新
+        function updateUI() {
+            document.getElementById('position').textContent = `X:${Math.round(game.player.x)} Y:${Math.round(game.player.y)}`;
+            document.getElementById('hp').textContent = `${game.player.hp}/${game.player.maxHp}`;
+            document.getElementById('level').textContent = game.player.level;
+            document.getElementById('exp').textContent = game.player.exp;
+        }
+        
+        // 描画
+        function render() {
+            // 背景クリア
+            ctx.fillStyle = '#1a252f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // グリッド描画（デバッグ用）
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // アイテム描画
+            game.items.forEach(item => {
+                ctx.fillStyle = item.color;
+                ctx.fillRect(item.x, item.y, item.width, item.height);
+                
+                // アイテムタイプ表示
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(item.type[0].toUpperCase(), item.x + item.width/2, item.y + item.height/2 + 3);
+            });
+            
+            // 敵描画
+            game.enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                
+                // HPバー
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(enemy.x, enemy.y - 10, enemy.width * (enemy.hp / 50), 5);
+                ctx.strokeStyle = '#fff';
+                ctx.strokeRect(enemy.x, enemy.y - 10, enemy.width, 5);
+            });
+            
+            // プレイヤー描画
+            ctx.fillStyle = game.player.color;
+            ctx.fillRect(game.player.x, game.player.y, game.player.width, game.player.height);
+            
+            // プレイヤーの向き表示（最後に押したキー）
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(game.player.x + game.player.width/2 - 2, game.player.y + game.player.height/2 - 2, 4, 4);
+        }
+        
+        // ゲームリセット
+        function resetGame() {
+            game.player.hp = game.player.maxHp;
+            game.player.x = 400;
+            game.player.y = 300;
+            game.player.level = 1;
+            game.player.exp = 0;
+            game.enemies = [];
+            game.items = [];
+            
+            debugLog('ゲームをリセットしました', 'warn');
+            
+            for (let i = 0; i < 3; i++) {
+                spawnEnemy();
+                spawnItem();
+            }
+        }
+        
+        // ゲームループ
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // ゲーム開始
+        debugLog('ゲーム開始!', 'info');
+        console.log('[RPG] ゲームループ開始 - FPS: 60');
+        console.log('[RPG] 操作方法: 矢印キーまたはWASDで移動');
+        gameLoop();
+        
+        // 定期的なステータスログ（5秒ごと）
+        setInterval(() => {
+            console.log(`[RPG] ステータス - HP:${game.player.hp} Lv:${game.player.level} 敵:${game.enemies.length} アイテム:${game.items.length}`);
+        }, 5000);
+    </script>
+</body>
+</html>

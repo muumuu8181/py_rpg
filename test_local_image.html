@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ローカル画像テスト</title>
+</head>
+<body>
+    <h1>ローカル画像の表示テスト</h1>
+    
+    <h2>1. 同じフォルダの画像（もしあれば）</h2>
+    <img src="test.jpg" alt="同じフォルダ" style="max-width: 300px;">
+    
+    <h2>2. Base64埋め込み画像（必ず表示される）</h2>
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="赤い点">
+    
+    <h2>3. オンライン画像（必ず表示される）</h2>
+    <img src="https://via.placeholder.com/150" alt="プレースホルダー">
+    
+    <p>画像をこのHTMLと同じフォルダに置けば、1番も表示されます！</p>
+</body>
+</html>

@@ -20,6 +20,13 @@ class Enemy:
         name_rect = name_text.get_rect(center=(self.x + self.size // 2, self.y - 10))
         screen.blit(name_text, name_rect)
     
+    def draw_at_position(self, screen, font, x, y):
+        pygame.draw.rect(screen, PURPLE, (x, y, self.size, self.size))
+        # Draw enemy name
+        name_text = font.render(self.name, True, WHITE)
+        name_rect = name_text.get_rect(center=(x + self.size // 2, y - 10))
+        screen.blit(name_text, name_rect)
+    
     def get_center(self):
         return (self.x + self.size // 2, self.y + self.size // 2)
     

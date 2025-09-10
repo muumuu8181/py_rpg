@@ -6,6 +6,7 @@ from player import Player
 from map import Map
 from ui import DialogueBox
 from battle import Battle
+from camera import Camera
 
 def main():
     # Pygame初期化
@@ -23,11 +24,12 @@ def main():
     clock = pygame.time.Clock()
     
     # ゲームオブジェクト作成
-    player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
+    player = Player(MAP_WIDTH // 2, MAP_HEIGHT // 2)
     current_map_id = 0
     current_map = Map(current_map_id)
     dialogue_box = DialogueBox()
     battle = None
+    camera = Camera(player)
     
     # ゲームループ
     running = True
@@ -59,15 +61,20 @@ def main():
             # 通常モード
             player.move(keys, current_map.obstacles)
             
+            # プレイヤーの移動速度をマップに応じて設定
+            player.set_speed_for_map(current_map_id)
+            
             # マップ遷移
             if player.y <= 0 and current_map_id == 0:  # 村から北へ
                 current_map_id = 1
                 current_map = Map(current_map_id)
-                player.y = SCREEN_HEIGHT - player.size - 10
-            elif player.y >= SCREEN_HEIGHT - player.size and current_map_id == 1:  # 森から南へ
+                player.y = MAP_HEIGHT - player.size - 10
+                player.set_speed_for_map(current_map_id)
+            elif player.y >= MAP_HEIGHT - player.size and current_map_id == 1:  # 森から南へ
                 current_map_id = 0
                 current_map = Map(current_map_id)
                 player.y = 10
+                player.set_speed_for_map(current_map_id)
             
             # NPC との対話チェック
             if space_pressed:
@@ -89,34 +96,42 @@ def main():
         
         space_pressed = False
         
+        # カメラ更新
+        camera.update(MAP_WIDTH, MAP_HEIGHT)
+        
         # 描画処理
         screen.fill(BLACK)
         
-        # マップ描画
-        current_map.draw_tiles(screen)
-        current_map.draw_obstacles(screen)
+        # マップ描画（カメラオフセット適用）
+        current_map.draw_tiles(screen, camera)
+        current_map.draw_obstacles(screen, camera)
         
-        # NPC描画
+        # NPC描画（カメラオフセット適用）
         for npc in current_map.npcs:
-            npc.draw(screen, font)
+            npc_x, npc_y = camera.apply(npc.x, npc.y)
+            npc.draw_at_position(screen, font, npc_x, npc_y)
             # インタラクションヒント
             if npc.get_distance_to(player) < INTERACTION_DISTANCE and not dialogue_box.active and not (battle and battle.active):
                 hint_text = font.render("スペースキーで話す", True, YELLOW)
-                hint_rect = hint_text.get_rect(center=(player.x + player.size // 2, player.y - 20))
+                player_screen_x, player_screen_y = camera.apply(player.x, player.y)
+                hint_rect = hint_text.get_rect(center=(player_screen_x + player.size // 2, player_screen_y - 20))
                 screen.blit(hint_text, hint_rect)
         
-        # 敵描画
+        # 敵描画（カメラオフセット適用）
         for enemy in current_map.enemies:
             if enemy.hp > 0:
-                enemy.draw(screen, font)
+                enemy_x, enemy_y = camera.apply(enemy.x, enemy.y)
+                enemy.draw_at_position(screen, font, enemy_x, enemy_y)
                 # バトルヒント
                 if enemy.get_distance_to(player) < INTERACTION_DISTANCE and not dialogue_box.active and not (battle and battle.active):
                     hint_text = font.render("スペースキーで戦う", True, YELLOW)
-                    hint_rect = hint_text.get_rect(center=(player.x + player.size // 2, player.y - 20))
+                    player_screen_x, player_screen_y = camera.apply(player.x, player.y)
+                    hint_rect = hint_text.get_rect(center=(player_screen_x + player.size // 2, player_screen_y - 20))
                     screen.blit(hint_text, hint_rect)
         
-        # プレイヤー描画
-        player.draw(screen)
+        # プレイヤー描画（カメラオフセット適用）
+        player_screen_x, player_screen_y = camera.apply(player.x, player.y)
+        player.draw_at_position(screen, player_screen_x, player_screen_y)
         
         # UI描画
         dialogue_box.draw(screen, font)

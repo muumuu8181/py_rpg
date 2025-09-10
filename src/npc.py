@@ -70,6 +70,21 @@ class NPC:
         name_rect = name_text.get_rect(center=(self.x + self.size // 2, self.y - 10))
         screen.blit(name_text, name_rect)
     
+    def draw_at_position(self, screen, font, x, y):
+        # スプライト画像があれば描画、なければ青い四角
+        if self.sprite:
+            # 画像を中央に配置
+            sprite_rect = self.sprite.get_rect()
+            sprite_rect.center = (x + self.size // 2, y + self.size // 2)
+            screen.blit(self.sprite, sprite_rect)
+        else:
+            pygame.draw.rect(screen, BLUE, (x, y, self.size, self.size))
+        
+        # Draw name above NPC
+        name_text = font.render(self.name, True, WHITE)
+        name_rect = name_text.get_rect(center=(x + self.size // 2, y - 10))
+        screen.blit(name_text, name_rect)
+    
     def get_center(self):
         return (self.x + self.size // 2, self.y + self.size // 2)
     

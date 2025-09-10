@@ -84,33 +84,68 @@ class Map:
                 Enemy(900, 600)
             ]
     
-    def draw_tiles(self, screen):
+    def draw_tiles(self, screen, camera=None):
         for tile in self.tiles:
-            pygame.draw.rect(screen, tile['color'], 
-                           (tile['x'], tile['y'], tile['w'], tile['h']))
+            if camera:
+                x, y = camera.apply(tile['x'], tile['y'])
+                # 画面内にある場合のみ描画
+                if x < SCREEN_WIDTH and y < SCREEN_HEIGHT and x + tile['w'] > 0 and y + tile['h'] > 0:
+                    pygame.draw.rect(screen, tile['color'], (x, y, tile['w'], tile['h']))
+            else:
+                pygame.draw.rect(screen, tile['color'], 
+                               (tile['x'], tile['y'], tile['w'], tile['h']))
     
-    def draw_obstacles(self, screen):
+    def draw_obstacles(self, screen, camera=None):
         for obstacle in self.obstacles:
-            if self.map_id == 0:  # 村
-                if obstacle.width > 100:  # 家
+            if camera:
+                obs_x, obs_y, obs_w, obs_h = camera.apply_rect(obstacle)
+                # 画面内にある場合のみ描画
+                if obs_x < SCREEN_WIDTH and obs_y < SCREEN_HEIGHT and obs_x + obs_w > 0 and obs_y + obs_h > 0:
+                    obs_rect = pygame.Rect(obs_x, obs_y, obs_w, obs_h)
+                    if self.map_id == 0:  # 村
+                        if obstacle.width > 100:  # 家
+                            pygame.draw.rect(screen, BROWN, obs_rect)
+                            # 屋根
+                            pygame.draw.polygon(screen, DARK_RED, [
+                                (obs_x - 10, obs_y),
+                                (obs_x + obs_w // 2, obs_y - 30),
+                                (obs_x + obs_w + 10, obs_y)
+                            ])
+                        else:  # 木
+                            # 幹
+                            pygame.draw.rect(screen, BROWN, obs_rect)
+                            # 葉
+                            pygame.draw.circle(screen, GREEN, 
+                                             (obs_x + obs_w // 2, obs_y - 10), 30)
+                    else:  # 森
+                        # 木の幹
+                        pygame.draw.rect(screen, BROWN, obs_rect)
+                        # 葉（大きめ）
+                        pygame.draw.circle(screen, DARK_GREEN, 
+                                         (obs_x + obs_w // 2, obs_y), 40)
+                        pygame.draw.circle(screen, GREEN, 
+                                         (obs_x + obs_w // 2, obs_y - 20), 35)
+            else:
+                if self.map_id == 0:  # 村
+                    if obstacle.width > 100:  # 家
+                        pygame.draw.rect(screen, BROWN, obstacle)
+                        # 屋根
+                        pygame.draw.polygon(screen, DARK_RED, [
+                            (obstacle.x - 10, obstacle.y),
+                            (obstacle.x + obstacle.width // 2, obstacle.y - 30),
+                            (obstacle.x + obstacle.width + 10, obstacle.y)
+                        ])
+                    else:  # 木
+                        # 幹
+                        pygame.draw.rect(screen, BROWN, obstacle)
+                        # 葉
+                        pygame.draw.circle(screen, GREEN, 
+                                         (obstacle.x + obstacle.width // 2, obstacle.y - 10), 30)
+                else:  # 森
+                    # 木の幹
                     pygame.draw.rect(screen, BROWN, obstacle)
-                    # 屋根
-                    pygame.draw.polygon(screen, DARK_RED, [
-                        (obstacle.x - 10, obstacle.y),
-                        (obstacle.x + obstacle.width // 2, obstacle.y - 30),
-                        (obstacle.x + obstacle.width + 10, obstacle.y)
-                    ])
-                else:  # 木
-                    # 幹
-                    pygame.draw.rect(screen, BROWN, obstacle)
-                    # 葉
+                    # 葉（大きめ）
+                    pygame.draw.circle(screen, DARK_GREEN, 
+                                     (obstacle.x + obstacle.width // 2, obstacle.y), 40)
                     pygame.draw.circle(screen, GREEN, 
-                                     (obstacle.x + obstacle.width // 2, obstacle.y - 10), 30)
-            else:  # 森
-                # 木の幹
-                pygame.draw.rect(screen, BROWN, obstacle)
-                # 葉（大きめ）
-                pygame.draw.circle(screen, DARK_GREEN, 
-                                 (obstacle.x + obstacle.width // 2, obstacle.y), 40)
-                pygame.draw.circle(screen, GREEN, 
-                                 (obstacle.x + obstacle.width // 2, obstacle.y - 20), 35)
+                                     (obstacle.x + obstacle.width // 2, obstacle.y - 20), 35)

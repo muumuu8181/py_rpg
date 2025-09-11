@@ -8,16 +8,34 @@ class DialogueBox:
         self.text = ""
         self.speaker = ""
         self.portrait = None
+        self.current_line = 0  # 現在表示している行
+        self.lines = []  # テキストの行リスト
         
     def show(self, speaker, text, portrait=None):
         self.active = True
         self.speaker = speaker
-        self.text = text
+        # textがリストの場合は複数行対応
+        if isinstance(text, list):
+            self.lines = text
+            self.current_line = 0
+            self.text = self.lines[0] if self.lines else ""
+        else:
+            self.text = text
+            self.lines = []
+            self.current_line = 0
         self.portrait = portrait
     
     def hide(self):
         self.active = False
         self.portrait = None
+        
+    def next_line(self):
+        """次の行に進む"""
+        if self.lines and self.current_line < len(self.lines) - 1:
+            self.current_line += 1
+            self.text = self.lines[self.current_line]
+            return True
+        return False
     
     def draw(self, screen, font):
         if not self.active:
@@ -49,5 +67,8 @@ class DialogueBox:
         screen.blit(dialogue_text, (text_x_offset, box_y + 40))
         
         # Draw instruction
-        instruction_text = font.render("スペースキーで閉じる", True, WHITE)
+        if self.lines and self.current_line < len(self.lines) - 1:
+            instruction_text = font.render(f"スペースキーで次へ ({self.current_line + 1}/{len(self.lines)})", True, WHITE)
+        else:
+            instruction_text = font.render("スペースキーで閉じる", True, WHITE)
         screen.blit(instruction_text, (text_x_offset, box_y + 120))

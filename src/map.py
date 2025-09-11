@@ -2,7 +2,7 @@
 import pygame
 from constants import *
 from npc import NPC
-from enemy import Enemy
+from enemy import Enemy, Boss
 
 class Map:
     def __init__(self, map_id):
@@ -77,11 +77,52 @@ class Map:
                 NPC(550, 500, "旅人", "道に迷ってしまった...")
             ]
             
-            # 敵
+            # 敵（さまざまな種類を配置）
             self.enemies = [
-                Enemy(800, 300),
-                Enemy(400, 400),
-                Enemy(900, 600)
+                # スライム（森の入り口付近）
+                Enemy(600, 700, "スライム", "slime"),
+                Enemy(500, 650, "スライム", "slime"),
+                Enemy(700, 650, "スライム", "slime"),
+                
+                # ゴブリン（森の中央部）
+                Enemy(300, 400, "ゴブリン", "goblin"),
+                Enemy(900, 400, "ゴブリン", "goblin"),
+                Enemy(600, 450, "ゴブリン", "goblin"),
+                
+                # オーク（森の深部）
+                Enemy(200, 200, "オーク", "orc"),
+                Enemy(1000, 200, "オーク", "orc"),
+                
+                # ゴースト（レア敵）
+                Enemy(600, 100, "ゴースト", "ghost")
+            ]
+            
+        elif self.map_id == 2:  # ボスエリア（森の奥）
+            # 地形タイルの作成
+            self.tiles = [
+                # 暗い森の背景
+                {'x': 0, 'y': 0, 'w': SCREEN_WIDTH, 'h': SCREEN_HEIGHT, 'color': BLACK, 'type': 'dark_forest'},
+                # 決戦の場
+                {'x': 300, 'y': 200, 'w': 600, 'h': 400, 'color': PURPLE, 'type': 'boss_arena'},
+            ]
+            
+            # 障害物（周囲の壁）
+            self.obstacles = []
+            # 上下の壁
+            for x in range(0, SCREEN_WIDTH, 40):
+                self.obstacles.append(pygame.Rect(x, 0, 40, 100))
+                self.obstacles.append(pygame.Rect(x, SCREEN_HEIGHT - 100, 40, 100))
+            # 左右の壁
+            for y in range(0, SCREEN_HEIGHT, 40):
+                self.obstacles.append(pygame.Rect(0, y, 100, 40))
+                self.obstacles.append(pygame.Rect(SCREEN_WIDTH - 100, y, 100, 40))
+                
+            # NPCs
+            self.npcs = []
+            
+            # ボス
+            self.enemies = [
+                Boss(600, 400)  # 中央に配置
             ]
     
     def draw_tiles(self, screen, camera=None):

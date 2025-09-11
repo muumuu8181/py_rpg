@@ -1,14 +1,17 @@
 """ゲームの定数定義"""
 
+# バージョン情報
+VERSION = "1.01"
+
 # 画面設定
 SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 800
 TILE_SIZE = 40
-FPS = 60
+FPS = 120  # フレームレートを上げる
 
-# マップサイズ
-MAP_WIDTH = 2400   # 実際のマップの幅
-MAP_HEIGHT = 1600  # 実際のマップの高さ
+# マップサイズ（画面固定なので画面サイズと同じ）
+MAP_WIDTH = SCREEN_WIDTH   # マップの幅
+MAP_HEIGHT = SCREEN_HEIGHT  # マップの高さ
 
 # キャラクターサイズ
 PLAYER_SIZE = 32
@@ -16,8 +19,9 @@ NPC_SIZE = 24  # 少し小さく
 ENEMY_SIZE = 40
 
 # ゲームプレイ設定
-PLAYER_SPEED_VILLAGE = 6  # 村での速度（速い）
-PLAYER_SPEED_FIELD = 3    # フィールドでの速度（遅い）
+PLAYER_SPEED_VILLAGE = 4.5  # 村での速度（速い）- 120FPS用に調整
+PLAYER_SPEED_FIELD = 2.25   # フィールドでの速度（遅い）- 120FPS用に調整
+PLAYER_SPEED_BOSS = 3.0    # ボスエリアでの速度 - 120FPS用に調整
 INTERACTION_DISTANCE = 50
 
 # 色定義
@@ -34,6 +38,7 @@ BROWN = (139, 69, 19)
 LIGHT_BLUE = (173, 216, 230)
 GRAY = (128, 128, 128)
 DARK_GREEN = (0, 100, 0)
+CYAN = (0, 255, 255)
 
 # フォントパス
 FONT_PATH = "C:/Windows/Fonts/meiryo.ttc"
